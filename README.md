@@ -180,7 +180,10 @@ export REDIS_URL=redis://redis:6379/0
 - 设置环境变量：
   - `UPSTREAM_BASE_URL`（公网 LiteLLM 或上游中转站）
   - `LITELLM_MASTER_KEY`（如果上游要求）
-- 调试端点：`POST /api/v1/chat/completions`
+- 调试端点：
+  - `POST /api/v1/chat/completions`（Next.js 原生 API 路径）
+  - `POST /v1/chat/completions`（已通过 rewrite 映射，便于 OpenAI-compatible 客户端）
+  - `GET /healthz`（rewrite 到 API health）
 - 选用 **Node runtime**，避免 Edge 在 SSE 透传场景下出现兼容性波动。
 
 ## GHCR 构建发布（GitHub Actions）
