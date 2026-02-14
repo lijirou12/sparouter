@@ -1,0 +1,47 @@
+name: docker-build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push router-fastapi
+        uses: docker/build-push-action@v6
+        with:
+          context: ./router-fastapi
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/router-fastapi:latest
+            ghcr.io/${{ github.repository }}/router-fastapi:${{ github.sha }}
+      - name: Build and push router-nextjs
+        uses: docker/build-push-action@v6
+        with:
+          context: ./router-nextjs
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/router-nextjs:latest
+            ghcr.io/${{ github.repository }}/router-nextjs:${{ github.sha }}
+      - name: Build and push router-monolith
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.monolith
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/router-monolith:latest
+            ghcr.io/${{ github.repository }}/router-monolith:${{ github.sha }}

@@ -1,0 +1,35 @@
+model_list:
+  - model_name: GENERAL
+    litellm_params:
+      model: openai/grok-4
+      api_base: os.environ/CHANNEL_A_BASE_URL
+      api_key: os.environ/CHANNEL_A_API_KEY
+
+  - model_name: GENERAL
+    litellm_params:
+      model: openai/grok-4-mini
+      api_base: os.environ/CHANNEL_B_BASE_URL
+      api_key: os.environ/CHANNEL_B_API_KEY
+
+  - model_name: CODE
+    litellm_params:
+      model: openai/codex-1
+      api_base: os.environ/CHANNEL_A_BASE_URL
+      api_key: os.environ/CHANNEL_A_API_KEY
+
+  - model_name: IMAGE
+    litellm_params:
+      model: openai/grok-imagine-image
+      api_base: os.environ/CHANNEL_A_BASE_URL
+      api_key: os.environ/CHANNEL_A_API_KEY
+
+  - model_name: VIDEO
+    litellm_params:
+      model: openai/grok-video-1
+      api_base: os.environ/CHANNEL_B_BASE_URL
+      api_key: os.environ/CHANNEL_B_API_KEY
+
+router_settings:
+  routing_strategy: simple-shuffle
+  num_retries: 2
+  timeout: 120

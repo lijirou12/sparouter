@@ -1,0 +1,63 @@
+version: "3.9"
+services:
+  router-api:
+    build: ./router-fastapi
+    container_name: sparouter-api
+    env_file: .env
+    environment:
+      - ROUTER_LISTEN_PORT=8080
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///data/router.db}
+      - STORAGE_MODE=${STORAGE_MODE:-sqlite}
+    volumes:
+      - ./data:/app/data
+      - ./generated:/app/generated
+    ports:
+      - "8080:8080"
+    depends_on:
+      - litellm
+
+  webui:
+    build: ./router-nextjs
+    container_name: sparouter-webui
+    env_file: .env
+    environment:
+      - NEXT_PUBLIC_API_BASE=${NEXT_PUBLIC_API_BASE:-http://localhost:8080}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - router-api
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: sparouter-litellm
+    environment:
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY:-change-me}
+      - CHANNEL_A_BASE_URL=${CHANNEL_A_BASE_URL:-}
+      - CHANNEL_A_API_KEY=${CHANNEL_A_API_KEY:-}
+      - CHANNEL_B_BASE_URL=${CHANNEL_B_BASE_URL:-}
+      - CHANNEL_B_API_KEY=${CHANNEL_B_API_KEY:-}
+    volumes:
+      - ./litellm/config.yaml:/app/config.yaml
+    command: ["--config", "/app/config.yaml", "--host", "0.0.0.0", "--port", "4000"]
+    ports:
+      - "4000:4000"
+
+  allinone:
+    profiles: ["single"]
+    build:
+      context: .
+      dockerfile: Dockerfile.monolith
+    container_name: sparouter-allinone
+    env_file: .env
+    environment:
+      - ROUTER_LISTEN_PORT=8080
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///data/router.db}
+      - STORAGE_MODE=${STORAGE_MODE:-sqlite}
+      - WEB_DIST_DIR=/app/webui_out
+    volumes:
+      - ./data:/app/data
+      - ./generated:/app/generated
+    ports:
+      - "8080:8080"
+    depends_on:
+      - litellm
