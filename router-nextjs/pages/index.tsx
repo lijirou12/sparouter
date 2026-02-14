@@ -1,21 +1,25 @@
 import Link from 'next/link';
-const nav = [
-  ['Providers', '/providers'],
-  ['Routing', '/routing'],
-  ['Classifier', '/classifier'],
-  ['Generate', '/generate'],
-  ['Playground', '/playground']
-];
+import { ConsoleLayout } from '../components/ConsoleLayout';
 
+const cards = [
+  ['Providers', '/providers', '管理供应商、API Key 与模型同步。'],
+  ['Routing', '/routing', '维护分组、部署权重与优先级。'],
+  ['Classifier', '/classifier', '配置分类器并做请求路由验证。'],
+  ['Generate', '/generate', '一键生成配置并可直接应用。'],
+  ['Playground', '/playground', '直接发送 chat completion 进行联调。']
+];
 
 export default function Home() {
   return (
-    <main style={{maxWidth: 980, margin: '32px auto', fontFamily: 'Arial'}}>
-      <h1>AI Router 控制台</h1>
-      <p>这是控制平面，不是聊天产品。核心是 Provider 导入、路由策略、分类器和配置生成。</p>
-      <ul>
-        {nav.map(([name, href]) => <li key={href}><Link href={href}>{name}</Link></li>)}
-      </ul>
-    </main>
+    <ConsoleLayout title='AI Router 控制台' description='这是控制平面：集中管理 Provider、路由策略、分类器与配置生成。'>
+      <section className='grid-2'>
+        {cards.map(([name, href, desc]) => (
+          <Link key={href} href={href} className='panel'>
+            <h3>{name}</h3>
+            <p style={{ color: 'var(--muted)', marginBottom: 0 }}>{desc}</p>
+          </Link>
+        ))}
+      </section>
+    </ConsoleLayout>
   );
 }
