@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "router-nextjs/package.json",
+      "use": "@vercel/next"
+    }
+  ]
+}
