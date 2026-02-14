@@ -1,0 +1,130 @@
+model_list:
+  - model_name: GENERAL
+    litellm_params:
+      model: openai/${GENERAL_MODEL_NAME}
+      api_base: ${CHANNEL_A_BASE_URL}
+      api_key: ${CHANNEL_A_API_KEY}
+      rpm: 600
+      timeout: 45
+    model_info:
+      id: GENERAL_CHANNEL_A
+      mode: chat
+      route_group: GENERAL
+      channel: CHANNEL_A
+      weight: 1.0
+
+  - model_name: GENERAL
+    litellm_params:
+      model: openai/${GENERAL_MODEL_NAME}
+      api_base: ${CHANNEL_B_BASE_URL}
+      api_key: ${CHANNEL_B_API_KEY}
+      rpm: 600
+      timeout: 45
+    model_info:
+      id: GENERAL_CHANNEL_B
+      mode: chat
+      route_group: GENERAL
+      channel: CHANNEL_B
+      weight: 1.0
+
+  - model_name: CODE
+    litellm_params:
+      model: openai/${CODE_MODEL_NAME}
+      api_base: ${CHANNEL_A_BASE_URL}
+      api_key: ${CHANNEL_A_API_KEY}
+      rpm: 600
+      timeout: 45
+    model_info:
+      id: CODE_CHANNEL_A
+      mode: chat
+      route_group: CODE
+      channel: CHANNEL_A
+      weight: 1.0
+
+  - model_name: CODE
+    litellm_params:
+      model: openai/${CODE_MODEL_NAME}
+      api_base: ${CHANNEL_B_BASE_URL}
+      api_key: ${CHANNEL_B_API_KEY}
+      rpm: 600
+      timeout: 45
+    model_info:
+      id: CODE_CHANNEL_B
+      mode: chat
+      route_group: CODE
+      channel: CHANNEL_B
+      weight: 1.0
+
+  - model_name: IMAGE
+    litellm_params:
+      model: openai/${IMAGE_MODEL_NAME}
+      api_base: ${CHANNEL_A_BASE_URL}
+      api_key: ${CHANNEL_A_API_KEY}
+      rpm: 600
+      timeout: 60
+    model_info:
+      id: IMAGE_CHANNEL_A
+      mode: chat
+      route_group: IMAGE
+      channel: CHANNEL_A
+      weight: 1.0
+
+  - model_name: IMAGE
+    litellm_params:
+      model: openai/${IMAGE_MODEL_NAME}
+      api_base: ${CHANNEL_B_BASE_URL}
+      api_key: ${CHANNEL_B_API_KEY}
+      rpm: 600
+      timeout: 60
+    model_info:
+      id: IMAGE_CHANNEL_B
+      mode: chat
+      route_group: IMAGE
+      channel: CHANNEL_B
+      weight: 1.0
+
+  - model_name: VIDEO
+    litellm_params:
+      model: openai/${VIDEO_MODEL_NAME}
+      api_base: ${CHANNEL_A_BASE_URL}
+      api_key: ${CHANNEL_A_API_KEY}
+      rpm: 300
+      timeout: 120
+    model_info:
+      id: VIDEO_CHANNEL_A
+      mode: chat
+      route_group: VIDEO
+      channel: CHANNEL_A
+      weight: 1.0
+
+  - model_name: VIDEO
+    litellm_params:
+      model: openai/${VIDEO_MODEL_NAME}
+      api_base: ${CHANNEL_B_BASE_URL}
+      api_key: ${CHANNEL_B_API_KEY}
+      rpm: 300
+      timeout: 120
+    model_info:
+      id: VIDEO_CHANNEL_B
+      mode: chat
+      route_group: VIDEO
+      channel: CHANNEL_B
+      weight: 1.0
+
+router_settings:
+  routing_strategy: simple-shuffle
+  fallbacks:
+    - GENERAL: ["CODE", "GENERAL"]
+    - CODE: ["GENERAL", "CODE"]
+    - IMAGE: ["GENERAL", "IMAGE"]
+    - VIDEO: ["GENERAL", "VIDEO"]
+  num_retries: 2
+  timeout: 60
+  retry_after: 0.5
+  allowed_fails: 2
+  cooldown_time: 30
+
+general_settings:
+  master_key: ${LITELLM_MASTER_KEY}
+  disable_spend_logs: false
+  completion_model: GENERAL
