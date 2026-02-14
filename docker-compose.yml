@@ -1,63 +1,43 @@
 version: "3.9"
-
 services:
+  router-api:
+    build: ./router-fastapi
+    container_name: sparouter-api
+    env_file: .env
+    environment:
+      - ROUTER_LISTEN_PORT=8080
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///data/router.db}
+      - STORAGE_MODE=${STORAGE_MODE:-sqlite}
+    volumes:
+      - ./data:/app/data
+      - ./generated:/app/generated
+    ports:
+      - "8080:8080"
+    depends_on:
+      - litellm
+
+  webui:
+    build: ./router-nextjs
+    container_name: sparouter-webui
+    env_file: .env
+    environment:
+      - NEXT_PUBLIC_API_BASE=${NEXT_PUBLIC_API_BASE:-http://localhost:8080}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - router-api
+
   litellm:
     image: ghcr.io/berriai/litellm:main-latest
     container_name: sparouter-litellm
+    environment:
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY:-change-me}
+      - CHANNEL_A_BASE_URL=${CHANNEL_A_BASE_URL:-}
+      - CHANNEL_A_API_KEY=${CHANNEL_A_API_KEY:-}
+      - CHANNEL_B_BASE_URL=${CHANNEL_B_BASE_URL:-}
+      - CHANNEL_B_API_KEY=${CHANNEL_B_API_KEY:-}
+    volumes:
+      - ./litellm/config.yaml:/app/config.yaml
+    command: ["--config", "/app/config.yaml", "--host", "0.0.0.0", "--port", "4000"]
     ports:
       - "4000:4000"
-    command: ["--config", "/app/config.yaml", "--port", "4000"]
-    volumes:
-      - ./litellm/config.yaml:/app/config.yaml:ro
-    environment:
-      CHANNEL_A_BASE_URL: ${CHANNEL_A_BASE_URL}
-      CHANNEL_A_API_KEY: ${CHANNEL_A_API_KEY}
-      CHANNEL_B_BASE_URL: ${CHANNEL_B_BASE_URL}
-      CHANNEL_B_API_KEY: ${CHANNEL_B_API_KEY}
-      GENERAL_MODEL_NAME: ${GENERAL_MODEL_NAME:-grok-4}
-      GENERAL_MODEL_NAME_CHEAP: ${GENERAL_MODEL_NAME_CHEAP:-grok-4-mini}
-      CODE_MODEL_NAME: ${CODE_MODEL_NAME:-codex-1}
-      IMAGE_MODEL_NAME: ${IMAGE_MODEL_NAME:-grok-imagine-image}
-      VIDEO_MODEL_NAME: ${VIDEO_MODEL_NAME:-grok-video-1}
-      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-change-me}
-    restart: unless-stopped
-
-  router-fastapi:
-    build:
-      context: ./router-fastapi
-    container_name: sparouter-router
-    depends_on:
-      - litellm
-    ports:
-      - "${ROUTER_LISTEN_PORT:-8080}:8080"
-    environment:
-      ROUTER_LISTEN_PORT: ${ROUTER_LISTEN_PORT:-8080}
-      UPSTREAM_BASE_URL: ${UPSTREAM_BASE_URL:-http://litellm:4000}
-      BYPASS_LITELLM: ${BYPASS_LITELLM:-false}
-      RAW_UPSTREAM_BASE_URL: ${RAW_UPSTREAM_BASE_URL:-https://your-proxy/v1}
-      REDIS_URL: ${REDIS_URL:-}
-      RPM_LIMIT: ${RPM_LIMIT:-60}
-      CIRCUIT_FAIL_THRESHOLD: ${CIRCUIT_FAIL_THRESHOLD:-3}
-      CIRCUIT_COOLDOWN_SECONDS: ${CIRCUIT_COOLDOWN_SECONDS:-30}
-      LATENCY_WINDOW: ${LATENCY_WINDOW:-20}
-      BUDGET_DAILY_USD: ${BUDGET_DAILY_USD:-5}
-      COST_TIER_GENERAL: ${COST_TIER_GENERAL:-mid}
-      CHANNEL_A_BASE_URL: ${CHANNEL_A_BASE_URL:-}
-      CHANNEL_A_API_KEY: ${CHANNEL_A_API_KEY:-}
-      CHANNEL_B_BASE_URL: ${CHANNEL_B_BASE_URL:-}
-      CHANNEL_B_API_KEY: ${CHANNEL_B_API_KEY:-}
-      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-change-me}
-      GENERAL_MODEL_NAME: ${GENERAL_MODEL_NAME:-grok-4}
-      GENERAL_MODEL_NAME_CHEAP: ${GENERAL_MODEL_NAME_CHEAP:-grok-4-mini}
-      CODE_MODEL_NAME: ${CODE_MODEL_NAME:-codex-1}
-      IMAGE_MODEL_NAME: ${IMAGE_MODEL_NAME:-grok-imagine-image}
-      VIDEO_MODEL_NAME: ${VIDEO_MODEL_NAME:-grok-video-1}
-    restart: unless-stopped
-
-  redis:
-    image: redis:7-alpine
-    container_name: sparouter-redis
-    profiles: ["redis"]
-    ports:
-      - "6379:6379"
-    restart: unless-stopped

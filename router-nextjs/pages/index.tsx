@@ -1,29 +1,21 @@
-import Head from 'next/head';
+import Link from 'next/link';
+const nav = [
+  ['Providers', '/providers'],
+  ['Routing', '/routing'],
+  ['Classifier', '/classifier'],
+  ['Generate', '/generate'],
+  ['Playground', '/playground']
+];
+
 
 export default function Home() {
   return (
-    <>
-      <Head>
-        <title>sparouter-nextjs debug router</title>
-        <link rel="icon" href="/favicon.svg" />
-      </Head>
-      <main style={{ fontFamily: 'Arial, sans-serif', maxWidth: 900, margin: '40px auto', lineHeight: 1.6 }}>
-        <h1>sparouter Next.js Debug Router</h1>
-        <p>Service is running on Vercel (Node runtime API routes). If you still see 307/401 before this page renders, check Vercel Deployment Protection settings.</p>
-        <h2>Available endpoints</h2>
-        <ul>
-          <li><code>POST /api/v1/chat/completions</code> (native Next.js API route)</li>
-          <li><code>POST /v1/chat/completions</code> (rewrite to API route for OpenAI-compatible clients)</li>
-          <li><code>GET /healthz</code> (rewrite to API health check)</li>
-        </ul>
-        <h2>Quick test</h2>
-        <pre style={{ background: '#f6f8fa', padding: 12, borderRadius: 8, overflowX: 'auto' }}>{`curl -sS https://<your-vercel-domain>/v1/chat/completions \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "model": "anything",
-    "messages": [{"role":"user","content":"你好"}]
-  }'`}</pre>
-      </main>
-    </>
+    <main style={{maxWidth: 980, margin: '32px auto', fontFamily: 'Arial'}}>
+      <h1>AI Router 控制台</h1>
+      <p>这是控制平面，不是聊天产品。核心是 Provider 导入、路由策略、分类器和配置生成。</p>
+      <ul>
+        {nav.map(([name, href]) => <li key={href}><Link href={href}>{name}</Link></li>)}
+      </ul>
+    </main>
   );
 }
