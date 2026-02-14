@@ -55,3 +55,12 @@ npm run dev
 - Output: Next.js 默认输出（不要改成静态导出）
 
 如果你看到 `/` 404 + `/favicon.ico` 404，但 `/api/...` 可以访问，那么主要是页面资源缺失，不是 Next.js 框架选错。
+
+
+## Monorepo 部署防踩坑（关键）
+
+如果你在 Vercel **项目根目录**部署整个仓库，而不是把 Root Directory 指到 `router-nextjs`，会出现整站 `/`、`/favicon.ico`、`/favicon.png` 都 404。
+
+本仓库已在根目录提供 `vercel.json`，强制 Vercel 使用 `router-nextjs/package.json` 构建 Next.js，避免因 Root Directory 配错导致全站 404。
+
+另外仅使用文本文件 `favicon.svg`，并通过 rewrite 兼容 `/favicon.ico` 与 `/favicon.png`。

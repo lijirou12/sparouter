@@ -187,6 +187,11 @@ export REDIS_URL=redis://redis:6379/0
 - 选用 **Node runtime**，避免 Edge 在 SSE 透传场景下出现兼容性波动。
 
 
+### Vercel Monorepo 404 说明（关键）
+
+如果日志里 `/`、`/favicon.ico`、`/favicon.png` 全部 404，优先怀疑 Vercel 部署根目录指错（没有构建到 `router-nextjs`）。
+本仓库已新增根目录 `vercel.json`，显式要求以 `router-nextjs/package.json` 构建 Next.js，降低配置错误概率。
+
 ### Vercel 常见 307/401 说明
 
 如果日志显示 `GET / -> 307` 随后 `401`，通常是 Vercel 的 Deployment Protection 在平台层拦截，不是 Next.js 路由代码错误。
