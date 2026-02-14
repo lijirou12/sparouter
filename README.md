@@ -76,6 +76,9 @@
 - `GENERAL`
   - 其它情况
 
+
+> 智能路由说明：默认 `intent_mode=rule` 使用规则识别；切换为 `llm` 后，会用你配置的小模型将请求分类到 `GENERAL/CODE/IMAGE/VIDEO`，失败时自动回退规则模式。
+
 ## 运行
 
 ### 1) 启动
@@ -88,8 +91,13 @@ docker-compose up -d
 
 FastAPI Router 额外提供：
 
-- `GET /`：返回服务信息（便于 Cloud Run / ClawCloudRun / LB 默认探活）
+- `GET /`：返回可视化管理页（支持在线导入供应商、拉取模型、配置智能路由小模型）
+- `GET /status.json`：返回机器可读状态（供探活/脚本使用）
 - `GET /favicon.ico`：返回 `204`（避免浏览器图标探测产生 404 日志）
+- `GET /admin/providers`：查看供应商（已脱敏）
+- `POST /admin/providers`：新增/更新供应商（`base_url/api_key/default_model` 等）
+- `POST /admin/providers/{id}/discover-models`：从供应商拉取模型列表（尝试 `/v1/models` 与 `/models`）
+- `GET/POST /admin/router-config`：配置 `intent_mode=rule|llm`、`selector_provider_id`、`selector_model`
 
 ### 2) 调用验证
 

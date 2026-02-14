@@ -7,13 +7,14 @@ import os
 import random
 import re
 import time
+import uuid
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Any, Deque, Dict, List, Optional, Tuple
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 
 try:
     import redis.asyncio as redis
@@ -160,6 +161,97 @@ class StateStore:
 store = StateStore()
 
 
+class AdminStore:
+    def __init__(self):
+        self.providers: Dict[str, Dict[str, Any]] = {}
+        self.router_config: Dict[str, Any] = {
+            "intent_mode": "rule",  # rule | llm
+            "selector_provider_id": "",
+            "selector_model": "",
+            "llm_timeout_seconds": 15,
+        }
+
+    def list_providers(self) -> List[Dict[str, Any]]:
+        return list(self.providers.values())
+
+    def upsert_provider(self, provider: Dict[str, Any]) -> Dict[str, Any]:
+        pid = provider.get("id") or str(uuid.uuid4())[:8]
+        provider["id"] = pid
+        self.providers[pid] = {
+            "id": pid,
+            "name": provider.get("name") or pid,
+            "base_url": str(provider.get("base_url", "")).rstrip("/"),
+            "api_key": provider.get("api_key", ""),
+            "enabled": bool(provider.get("enabled", True)),
+            "tags": provider.get("tags", []),
+            "default_model": provider.get("default_model", ""),
+            "last_models": provider.get("last_models", []),
+        }
+        return self.providers[pid]
+
+    def delete_provider(self, pid: str) -> bool:
+        return self.providers.pop(pid, None) is not None
+
+
+admin_store = AdminStore()
+
+
+def _mask_provider(p: Dict[str, Any]) -> Dict[str, Any]:
+    masked = dict(p)
+    key = masked.get("api_key", "")
+    masked["api_key"] = ("***" + key[-4:]) if key else ""
+    return masked
+
+
+async def detect_intent(payload: Dict[str, Any]) -> str:
+    mode = admin_store.router_config.get("intent_mode", "rule")
+    if mode != "llm":
+        return detect_intent_rule(payload)
+
+    provider_id = admin_store.router_config.get("selector_provider_id", "")
+    selector_model = admin_store.router_config.get("selector_model", "")
+    provider = admin_store.providers.get(provider_id)
+    if not provider or not provider.get("enabled") or not selector_model:
+        return detect_intent_rule(payload)
+
+    text = flatten_text(payload.get("messages", []))
+    prompt = (
+        "你是意图分类器。只输出以下四个标签之一，不要输出其它字符："
+        "GENERAL, CODE, IMAGE, VIDEO。\n"
+        f"用户内容:\n{text}"
+    )
+
+    url = f"{provider['base_url']}/v1/chat/completions"
+    headers = {"Content-Type": "application/json"}
+    if provider.get("api_key"):
+        headers["Authorization"] = f"Bearer {provider['api_key']}"
+
+    body = {
+        "model": selector_model,
+        "temperature": 0,
+        "messages": [
+            {"role": "system", "content": "你只返回GENERAL/CODE/IMAGE/VIDEO之一。"},
+            {"role": "user", "content": prompt},
+        ],
+    }
+
+    timeout = httpx.Timeout(float(admin_store.router_config.get("llm_timeout_seconds", 15)), connect=5.0)
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.post(url, headers=headers, json=body)
+            if resp.status_code >= 400:
+                return detect_intent_rule(payload)
+            data = resp.json()
+            content = (((data.get("choices") or [{}])[0].get("message") or {}).get("content") or "").upper()
+            for tag in ("GENERAL", "CODE", "IMAGE", "VIDEO"):
+                if tag in content:
+                    return tag
+    except Exception:
+        pass
+    return detect_intent_rule(payload)
+
+
+
 def flatten_text(messages: List[Dict[str, Any]]) -> str:
     chunks: List[str] = []
     for msg in messages or []:
@@ -183,7 +275,7 @@ def has_multimodal_file_or_image(messages: List[Dict[str, Any]]) -> bool:
     return False
 
 
-def detect_intent(payload: Dict[str, Any]) -> str:
+def detect_intent_rule(payload: Dict[str, Any]) -> str:
     if payload.get("video_config") is not None:
         return "VIDEO"
 
@@ -284,19 +376,185 @@ async def shutdown_event():
 
 
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 async def root():
+    return """<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>sparouter 管理页</title>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; background:#0b1020; color:#e5e7eb; margin:0; }
+      .wrap { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+      .grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+      .card { background:#111827; border:1px solid #374151; border-radius:12px; padding:16px; margin-bottom:16px; }
+      h1,h2 { margin:0 0 10px 0; }
+      input,select,button,textarea { width:100%; margin:6px 0; padding:8px; border-radius:8px; border:1px solid #374151; background:#0f172a; color:#e5e7eb; }
+      button { cursor:pointer; background:#1d4ed8; }
+      pre { background:#0f172a; border-radius:8px; padding:10px; overflow:auto; }
+      .row { display:flex; gap:8px; }
+      .row > * { flex:1; }
+      .muted { color:#9ca3af; }
+      @media (max-width: 900px){ .grid{ grid-template-columns:1fr; } }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <h1>sparouter 管理页</h1>
+        <div class="muted">在线导入供应商、拉取模型、配置小模型智能路由（rule/llm）。</div>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <h2>新增/更新供应商</h2>
+          <input id="pid" placeholder="id(留空自动生成)" />
+          <input id="pname" placeholder="name" />
+          <input id="purl" placeholder="base_url, 如 https://api.xxx.com" />
+          <input id="pkey" placeholder="api_key" />
+          <input id="pmodel" placeholder="default_model(可选)" />
+          <button onclick="saveProvider()">保存供应商</button>
+          <pre id="providers">加载中...</pre>
+        </div>
+        <div class="card">
+          <h2>智能意图小模型配置</h2>
+          <select id="intent_mode"><option value="rule">rule(规则)</option><option value="llm">llm(小模型分类)</option></select>
+          <input id="selector_provider_id" placeholder="selector_provider_id" />
+          <input id="selector_model" placeholder="selector_model" />
+          <input id="llm_timeout_seconds" type="number" value="15" />
+          <button onclick="saveConfig()">保存路由配置</button>
+          <pre id="cfg"></pre>
+        </div>
+      </div>
+      <div class="card">
+        <h2>工具</h2>
+        <div class="row">
+          <input id="discover_id" placeholder="provider_id" />
+          <button onclick="discoverModels()">拉取模型列表</button>
+        </div>
+        <pre id="discover"></pre>
+      </div>
+    </div>
+    <script>
+      async function j(url, opt={}){ const r = await fetch(url, Object.assign({headers:{'Content-Type':'application/json'}}, opt)); return {ok:r.ok, status:r.status, data: await r.json().catch(()=>({}))}; }
+      async function load(){
+        const ps = await j('/admin/providers');
+        document.getElementById('providers').textContent = JSON.stringify(ps.data, null, 2);
+        const cfg = await j('/admin/router-config');
+        document.getElementById('cfg').textContent = JSON.stringify(cfg.data, null, 2);
+        if (cfg.data.intent_mode) document.getElementById('intent_mode').value = cfg.data.intent_mode;
+        document.getElementById('selector_provider_id').value = cfg.data.selector_provider_id || '';
+        document.getElementById('selector_model').value = cfg.data.selector_model || '';
+        document.getElementById('llm_timeout_seconds').value = cfg.data.llm_timeout_seconds || 15;
+      }
+      async function saveProvider(){
+        const body = {id:pid.value.trim(), name:pname.value.trim(), base_url:purl.value.trim(), api_key:pkey.value.trim(), default_model:pmodel.value.trim(), enabled:true};
+        await j('/admin/providers', {method:'POST', body: JSON.stringify(body)}); load();
+      }
+      async function saveConfig(){
+        const body = {intent_mode:intent_mode.value, selector_provider_id:selector_provider_id.value.trim(), selector_model:selector_model.value.trim(), llm_timeout_seconds:Number(llm_timeout_seconds.value||15)};
+        await j('/admin/router-config', {method:'POST', body: JSON.stringify(body)}); load();
+      }
+      async function discoverModels(){
+        const id = discover_id.value.trim();
+        const out = await j(`/admin/providers/${id}/discover-models`, {method:'POST'});
+        document.getElementById('discover').textContent = JSON.stringify(out, null, 2);
+        load();
+      }
+      load();
+    </script>
+  </body>
+</html>"""
+
+
+@app.get("/status.json")
+async def status_json():
     return {
         "service": "sparouter-intent-router",
         "status": "ok",
-        "endpoints": ["/healthz", "/v1/chat/completions"],
+        "endpoints": ["/", "/healthz", "/v1/chat/completions", "/status.json", "/admin/providers", "/admin/router-config"],
     }
+
+
+@app.get("/admin/providers")
+async def admin_list_providers():
+    return {"providers": [_mask_provider(p) for p in admin_store.list_providers()]}
+
+
+@app.post("/admin/providers")
+async def admin_save_provider(req: Request):
+    body = await req.json()
+    if not body.get("base_url"):
+        raise HTTPException(status_code=400, detail="base_url is required")
+    saved = admin_store.upsert_provider(body)
+    return {"provider": _mask_provider(saved)}
+
+
+@app.delete("/admin/providers/{provider_id}")
+async def admin_delete_provider(provider_id: str):
+    ok = admin_store.delete_provider(provider_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="provider not found")
+    return {"deleted": provider_id}
+
+
+@app.post("/admin/providers/{provider_id}/discover-models")
+async def admin_discover_models(provider_id: str):
+    p = admin_store.providers.get(provider_id)
+    if not p:
+        raise HTTPException(status_code=404, detail="provider not found")
+
+    headers = {"Content-Type": "application/json"}
+    if p.get("api_key"):
+        headers["Authorization"] = f"Bearer {p['api_key']}"
+
+    urls = [f"{p['base_url']}/v1/models", f"{p['base_url']}/models"]
+    models: List[str] = []
+    async with httpx.AsyncClient(timeout=httpx.Timeout(20.0, connect=5.0)) as client:
+        for u in urls:
+            try:
+                r = await client.get(u, headers=headers)
+                if r.status_code < 400:
+                    data = r.json()
+                    for item in data.get("data", []):
+                        mid = item.get("id")
+                        if mid:
+                            models.append(mid)
+                    if models:
+                        break
+            except Exception:
+                continue
+
+    p["last_models"] = sorted(set(models))
+    return {"provider_id": provider_id, "models": p["last_models"]}
+
+
+@app.get("/admin/router-config")
+async def admin_get_router_config():
+    return admin_store.router_config
+
+
+@app.post("/admin/router-config")
+async def admin_set_router_config(req: Request):
+    body = await req.json()
+    mode = body.get("intent_mode", "rule")
+    if mode not in {"rule", "llm"}:
+        raise HTTPException(status_code=400, detail="intent_mode must be rule or llm")
+    admin_store.router_config.update(
+        {
+            "intent_mode": mode,
+            "selector_provider_id": body.get("selector_provider_id", ""),
+            "selector_model": body.get("selector_model", ""),
+            "llm_timeout_seconds": int(body.get("llm_timeout_seconds", 15)),
+        }
+    )
+    return admin_store.router_config
 
 
 @app.get("/favicon.ico")
 async def favicon():
-    # Cloud runtimes and browsers often probe this path; return 204 to avoid noisy 404 logs.
     return JSONResponse(status_code=204, content=None)
+
 
 @app.get("/healthz")
 async def healthz():
@@ -316,7 +574,7 @@ async def chat_completions(req: Request):
     if not allowed:
         raise HTTPException(status_code=429, detail=f"RPM limit exceeded ({RPM_LIMIT})")
 
-    group = detect_intent(payload)
+    group = await detect_intent(payload)
     day_key = utc_date()
     estimated = estimate_cost(group)
     spent = await store.get_budget(day_key)
