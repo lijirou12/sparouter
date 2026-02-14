@@ -16,7 +16,8 @@ from typing import Any, Dict, List, Optional
 import httpx
 import yaml
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 
 logger = logging.getLogger("router")
 logging.basicConfig(level=logging.INFO)
@@ -35,6 +36,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///data/router.db")
 STATE_FILE = Path(os.getenv("STATE_FILE", "./data/state.json"))
 RPM_LIMIT = int(os.getenv("RPM_LIMIT", "60"))
 REQUEST_TIMEOUT_SECONDS = float(os.getenv("REQUEST_TIMEOUT_SECONDS", "120"))
+WEB_DIST_DIR = Path(os.getenv("WEB_DIST_DIR", "/app/webui_out"))
 
 # --------------- crypto --------------
 def _kstream(secret: str, n: int) -> bytes:
@@ -608,7 +610,10 @@ app = FastAPI(title="sparouter-control-plane")
 
 @app.get("/", response_class=HTMLResponse)
 async def root_page():
-    return """<!doctype html><html><head><meta charset='utf-8'/><meta name='viewport' content='width=device-width,initial-scale=1'/><title>AI Router API</title></head><body><h2>AI Router API is running</h2><p>WebUI: deploy router-nextjs to access full console.</p><ul><li><a href='/healthz'>/healthz</a></li><li><a href='/status.json'>/status.json</a></li></ul></body></html>"""
+    index_path = WEB_DIST_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+    return """<!doctype html><html><head><meta charset='utf-8'/><meta name='viewport' content='width=device-width,initial-scale=1'/><title>AI Router API</title></head><body><h2>AI Router API is running</h2><p>WebUI not bundled in this container. Deploy router-nextjs or use monolith image.</p><ul><li><a href='/healthz'>/healthz</a></li><li><a href='/status.json'>/status.json</a></li></ul></body></html>"""
 
 
 @app.get("/status.json")
@@ -918,6 +923,9 @@ async def route_chat(req: Request):
 
     raise last_error or HTTPException(status_code=503, detail="all candidates failed")
 
+
+if WEB_DIST_DIR.exists():
+    app.mount("/", StaticFiles(directory=str(WEB_DIST_DIR), html=True), name="webui")
 
 if __name__ == "__main__":
     import uvicorn

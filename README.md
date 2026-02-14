@@ -67,3 +67,18 @@ docker compose up -d --build
 ## 生产建议
 - 生产推荐 Docker 部署 FastAPI + LiteLLM
 - 可扩展将 SQLite 切到 Postgres（可在后续接入 SQLAlchemy）
+
+## 单容器部署（保留分容器优势）
+你可以继续使用分容器（推荐生产职责分离），也可以在云平台一键上线单容器：
+
+- 单容器镜像：`router-monolith`（FastAPI + 打包后的 Next.js 静态控制台）
+- 单容器对外只开一个端口（默认 8080）：
+  - `/`、`/providers`、`/routing`、`/classifier`、`/generate`、`/playground` -> WebUI
+  - `/api/*`、`/v1/*` -> Router API/Runtime
+
+本地试单容器：
+```bash
+docker compose --profile single up -d --build allinone litellm
+```
+
+> 这样可以“更容易上线”；同时保留了分容器模式的优势（独立扩缩容、独立发布、资源隔离）。

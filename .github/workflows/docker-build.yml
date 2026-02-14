@@ -36,3 +36,12 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}/router-nextjs:latest
             ghcr.io/${{ github.repository }}/router-nextjs:${{ github.sha }}
+      - name: Build and push router-monolith
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.monolith
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/router-monolith:latest
+            ghcr.io/${{ github.repository }}/router-monolith:${{ github.sha }}
