@@ -282,6 +282,22 @@ async def shutdown_event():
     await store.close()
 
 
+
+
+@app.get("/")
+async def root():
+    return {
+        "service": "sparouter-intent-router",
+        "status": "ok",
+        "endpoints": ["/healthz", "/v1/chat/completions"],
+    }
+
+
+@app.get("/favicon.ico")
+async def favicon():
+    # Cloud runtimes and browsers often probe this path; return 204 to avoid noisy 404 logs.
+    return JSONResponse(status_code=204, content=None)
+
 @app.get("/healthz")
 async def healthz():
     return {"status": "ok", "redis": bool(store._redis)}

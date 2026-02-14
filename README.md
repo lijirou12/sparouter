@@ -84,6 +84,13 @@
 docker-compose up -d
 ```
 
+### 1.5) 平台探活/浏览器默认请求（避免 404 噪声）
+
+FastAPI Router 额外提供：
+
+- `GET /`：返回服务信息（便于 Cloud Run / ClawCloudRun / LB 默认探活）
+- `GET /favicon.ico`：返回 `204`（避免浏览器图标探测产生 404 日志）
+
 ### 2) 调用验证
 
 #### GENERAL
