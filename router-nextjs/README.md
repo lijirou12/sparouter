@@ -13,6 +13,22 @@
 - `rewrites`：把 `/v1/chat/completions` 重写到 `/api/v1/chat/completions`
 - `GET /healthz`：重写到 `/api/healthz`
 
+
+## 为什么会出现 307 + 401（即使代码没问题）
+
+如果 Vercel 项目开启了 **Deployment Protection / Vercel Authentication**，请求会先被平台层重定向（常见 307）再拦截（401）。
+这发生在你的应用代码之前，所以即使 Next.js 路由正常，也会先看到 307/401。
+
+可选处理：
+
+- 在 Vercel 项目设置里关闭该项目（或 Preview 环境）的保护；或
+- 使用带保护绕过参数/令牌的访问方式（团队策略允许时）；或
+- 直接测试 API 路径并带授权（如果你们组织策略要求）。
+
+新增兼容项：
+
+- 已提供 `/favicon.svg`，并把 `/favicon.ico`、`/favicon.png` 重写到该文件，减少浏览器默认图标请求导致的 404 噪声。
+
 ## 本地运行
 
 ```bash

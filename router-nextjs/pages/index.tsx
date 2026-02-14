@@ -5,10 +5,11 @@ export default function Home() {
     <>
       <Head>
         <title>sparouter-nextjs debug router</title>
+        <link rel="icon" href="/favicon.svg" />
       </Head>
       <main style={{ fontFamily: 'Arial, sans-serif', maxWidth: 900, margin: '40px auto', lineHeight: 1.6 }}>
         <h1>sparouter Next.js Debug Router</h1>
-        <p>Service is running on Vercel (Node runtime API routes).</p>
+        <p>Service is running on Vercel (Node runtime API routes). If you still see 307/401 before this page renders, check Vercel Deployment Protection settings.</p>
         <h2>Available endpoints</h2>
         <ul>
           <li><code>POST /api/v1/chat/completions</code> (native Next.js API route)</li>

@@ -11,6 +11,14 @@ const nextConfig = {
         source: '/healthz',
         destination: '/api/healthz',
       },
+      {
+        source: '/favicon.ico',
+        destination: '/favicon.svg',
+      },
+      {
+        source: '/favicon.png',
+        destination: '/favicon.svg',
+      },
     ];
   },
 };

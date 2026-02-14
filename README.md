@@ -186,6 +186,12 @@ export REDIS_URL=redis://redis:6379/0
   - `GET /healthz`（rewrite 到 API health）
 - 选用 **Node runtime**，避免 Edge 在 SSE 透传场景下出现兼容性波动。
 
+
+### Vercel 常见 307/401 说明
+
+如果日志显示 `GET / -> 307` 随后 `401`，通常是 Vercel 的 Deployment Protection 在平台层拦截，不是 Next.js 路由代码错误。
+请在项目设置中检查并按团队策略调整保护配置；本仓库已补充主页、`/healthz`、`/v1/chat/completions` rewrite 与 favicon rewrite，避免无关 404 噪声。
+
 ## GHCR 构建发布（GitHub Actions）
 
 Workflow：`.github/workflows/docker-build.yml`
